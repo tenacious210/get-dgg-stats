@@ -1,5 +1,7 @@
-from datetime import timedelta, date
-import logging
+from schedule import every, repeat, run_pending
+from datetime import datetime, timedelta, date
+from google.cloud import storage
+from time import sleep
 import requests
 import sqlite3
 import re
@@ -10,10 +12,12 @@ def daterange(start_date, end_date):
         yield start_date + timedelta(n)
 
 
+@repeat(every().day.at("12:00"))
 def update_emote_stats():
     emote_json = requests.get("https://cdn.destiny.gg/emotes/emotes.json").json()
     emotes = [e["prefix"] for e in emote_json]
     user_emotes = {}
+
     today = date.today()
     tomorrow = today + timedelta(days=1)
     thirty_days_ago = today - timedelta(days=30)
@@ -29,6 +33,7 @@ def update_emote_stats():
                     user_emotes[user] = {emote: 0 for emote in emotes}
                 for emote in emotes:
                     user_emotes[user][emote] += len(re.findall(rf"\b{emote}\b", log))
+
     emote_db_con = sqlite3.connect("user_emotes.db")
     # Will create the .db file if it doesn't exist
     emote_db_cur = emote_db_con.cursor()
@@ -48,7 +53,18 @@ def update_emote_stats():
         emote_db_cur.execute(f"INSERT INTO LastMonth ({db_keys}) VALUES ({db_values})")
     emote_db_con.commit()
     emote_db_con.close()
-    print("Database updated successfully.")
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket("tenadev")
+    blob = bucket.blob("user_emotes.db")
+    blob.upload_from_filename("user_emotes.db")
+
+    print(f"Database updated successfully at {datetime.now()}")
 
 
-update_emote_stats()
+if __name__ == "__main__":
+    update_emote_stats()
+    while True:
+        print(f"Checking for scheduled jobs at {datetime.now()}")
+        run_pending()
+        sleep(3000)
