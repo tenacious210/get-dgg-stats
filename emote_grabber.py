@@ -1,4 +1,3 @@
-from schedule import every, repeat, run_pending
 from datetime import datetime, timedelta, date
 from google.cloud import storage
 from time import sleep
@@ -12,7 +11,6 @@ def daterange(start_date, end_date):
         yield start_date + timedelta(n)
 
 
-@repeat(every().day.at("12:00"))
 def update_emote_stats():
     emote_json = requests.get("https://cdn.destiny.gg/emotes/emotes.json").json()
     emotes = [e["prefix"] for e in emote_json]
@@ -64,7 +62,3 @@ def update_emote_stats():
 
 if __name__ == "__main__":
     update_emote_stats()
-    while True:
-        print(f"Checking for scheduled jobs at {datetime.now()}")
-        run_pending()
-        sleep(3000)
