@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
+
 from google.cloud import storage
-from time import sleep
 import requests
 import sqlite3
 import re
@@ -14,6 +14,11 @@ def daterange(start_date, end_date):
 def update_emote_stats(
     start_date: datetime = datetime.today(), end_date: datetime = None
 ):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket("tenadev")
+    blob = bucket.blob("emote_stats.db")
+    blob.download_to_filename("emote_stats.db")
+
     if not end_date:
         end_date = start_date
     emote_json = requests.get("https://cdn.destiny.gg/emotes/emotes.json").json()
@@ -64,9 +69,6 @@ def update_emote_stats(
 
     con.close()
 
-    storage_client = storage.Client()
-    bucket = storage_client.bucket("tenadev")
-    blob = bucket.blob("emote_stats.db")
     blob.upload_from_filename("emote_stats.db")
 
     print(f"Database updated successfully at {datetime.now()}")
