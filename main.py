@@ -12,7 +12,8 @@ def daterange(start_date, end_date):
 
 
 def update_emote_stats(
-    start_date: datetime = datetime.today(), end_date: datetime = None
+    start_date: datetime = datetime.today() - timedelta(days=1),
+    end_date: datetime = None,
 ):
     storage_client = storage.Client()
     bucket = storage_client.bucket("tenadev")
