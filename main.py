@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from google.cloud import storage
 import requests
 import sqlite3
+import json
 import re
 
 
@@ -66,8 +67,31 @@ def update_emote_stats(
                 [f",'{emote_count}'" for emote_count in emote_dict.values()]
             )
             cur.execute(f"INSERT INTO EmoteStats ({db_keys}) VALUES ({db_values})")
-        con.commit()
 
+    print("Getting top posters")
+    cmd = (
+        "CREATE TABLE IF NOT EXISTS TopPosters ("
+        "Emote STRING NOT NULL, "
+        "Posters STRING NOT NULL)"
+    )
+    cur.execute(cmd)
+    cur.execute("DELETE FROM TopPosters")
+    target_day = datetime.today() - timedelta(days=30)
+    sql_date = target_day.strftime("%Y-%m-%d")
+    for emote in emotes:
+        cmd = (
+            f"SELECT UserName,SUM({emote}) FROM EmoteStats "
+            f"WHERE Date >= DATE('{sql_date}') AND {emote} > 0 "
+            f"GROUP BY UserName ORDER BY SUM({emote}) DESC "
+            f"LIMIT 5"
+        )
+        top_posters_raw = cur.execute(cmd).fetchall()
+        top_posters = json.dumps({u: a for u, a in top_posters_raw})
+        cmd = "INSERT INTO TopPosters VALUES (:emote, :posters)"
+        params = {"emote": emote, "posters": top_posters}
+        cur.execute(cmd, params)
+
+    con.commit()
     con.close()
 
     blob.upload_from_filename("emote_stats.db")
