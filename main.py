@@ -32,7 +32,8 @@ def update_emote_stats(
     cmd = (
         "CREATE TABLE IF NOT EXISTS EmoteStats ("
         "UserName STRING NOT NULL, "
-        "Date DATE NOT NULL)"
+        "Date DATE NOT NULL, "
+        "UNIQUE (UserName, Date))"
     )
     cur.execute(cmd)
 
@@ -66,12 +67,14 @@ def update_emote_stats(
             db_values = f"'{username}','{db_date}'" + "".join(
                 [f",'{emote_count}'" for emote_count in emote_dict.values()]
             )
-            cur.execute(f"INSERT INTO EmoteStats ({db_keys}) VALUES ({db_values})")
+            cur.execute(
+                f"INSERT OR IGNORE INTO EmoteStats ({db_keys}) VALUES ({db_values})"
+            )
 
     print("Getting top posters")
     cmd = (
         "CREATE TABLE IF NOT EXISTS TopPosters ("
-        "Emote STRING NOT NULL, "
+        "Emote STRING NOT NULL UNIQUE, "
         "Posters STRING NOT NULL)"
     )
     cur.execute(cmd)
