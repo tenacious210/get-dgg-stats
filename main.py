@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
-
-from google.cloud import storage
 import requests
 import sqlite3
 import json
 import re
+
+from google.cloud import storage
 
 
 def daterange(start_date, end_date):
@@ -16,18 +16,12 @@ def update_emote_stats(
     start_date: datetime = datetime.today() - timedelta(days=1),
     end_date: datetime = None,
 ):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket("tenadev")
-    blob = bucket.blob("emote_stats.db")
-    blob.download_to_filename("emote_stats.db")
-
     if not end_date:
         end_date = start_date
     emote_json = requests.get("https://cdn.destiny.gg/emotes/emotes.json").json()
     emotes = [e["prefix"] for e in emote_json]
 
-    con = sqlite3.connect("emote_stats.db")
-    # Will create the .db file if it doesn't exist
+    con = sqlite3.connect("dgg_stats.db")
     cur = con.cursor()
     cmd = (
         "CREATE TABLE IF NOT EXISTS EmoteStats ("
@@ -50,7 +44,7 @@ def update_emote_stats(
             "https://dgg.overrustlelogs.net/Destinygg%20chatlog/"
             f"{month_name}%20{year_num}/{year_num}-{month_num}-{day_num}.txt"
         )
-        print(f"Connecting to {rustle_url}")
+        print(f"Getting emotes from {rustle_url}")
         logs = requests.get(rustle_url).text.split("\n")
         for log in logs:
             if len(log) > 26:
@@ -70,6 +64,7 @@ def update_emote_stats(
             cur.execute(
                 f"INSERT OR IGNORE INTO EmoteStats ({db_keys}) VALUES ({db_values})"
             )
+        con.commit()
 
     print("Getting top posters")
     cmd = (
@@ -93,14 +88,64 @@ def update_emote_stats(
         cmd = "INSERT INTO TopPosters VALUES (:emote, :posters)"
         params = {"emote": emote, "posters": top_posters}
         cur.execute(cmd, params)
-
     con.commit()
+
     con.close()
 
-    blob.upload_from_filename("emote_stats.db")
+    print(f"Emotes updated successfully at {datetime.now()}")
 
-    print(f"Database updated successfully at {datetime.now()}")
+
+def update_lines(
+    start_date: datetime = datetime.today() - timedelta(days=1),
+    end_date: datetime = None,
+):
+    if not end_date:
+        end_date = start_date
+    con = sqlite3.connect("dgg_stats.db")
+    cur = con.cursor()
+    cmd = (
+        "CREATE TABLE IF NOT EXISTS Lines ("
+        "UserName STRING NOT NULL UNIQUE, "
+        "Amount INT NOT NULL)"
+    )
+    cur.execute(cmd)
+
+    next_day = end_date + timedelta(days=1)
+    for day in daterange(start_date, next_day):
+        lines = {}
+        year_num, month_num, month_name, day_num = day.strftime("%Y %m %B %d").split()
+        rustle_url = (
+            "https://dgg.overrustlelogs.net/Destinygg%20chatlog/"
+            f"{month_name}%20{year_num}/{year_num}-{month_num}-{day_num}.txt"
+        )
+        print(f"Getting lines from {rustle_url}")
+        logs = requests.get(rustle_url).text.split("\n")
+        for log in logs:
+            if len(log) > 26:
+                user = log[26 : log.find(":", 26)]
+                if user not in lines.keys():
+                    lines[user] = 0
+                lines[user] += 1
+        for user, amount in lines.items():
+            params = {"user": user, "amount": amount}
+            cur.execute(
+                f"INSERT OR IGNORE INTO Lines (UserName, Amount) VALUES (:user, 0)",
+                params,
+            )
+            cur.execute(
+                f"UPDATE Lines SET Amount = Amount + :amount WHERE UserName = :user",
+                params,
+            )
+        con.commit()
+    con.close()
+    print(f"Lines updated successfully at {datetime.now()}")
 
 
 if __name__ == "__main__":
+    storage_client = storage.Client()
+    bucket = storage_client.bucket("tenadev")
+    blob = bucket.blob("dgg_stats.db")
+    blob.download_to_filename("dgg_stats.db")
     update_emote_stats()
+    update_lines()
+    blob.upload_from_filename("dgg_stats.db")
