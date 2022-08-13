@@ -141,6 +141,57 @@ def update_lines(
     print(f"Lines updated successfully at {datetime.now()}")
 
 
+def update_tng_score(
+    start_date: datetime = datetime.today() - timedelta(days=1),
+    end_date: datetime = None,
+):
+    if not end_date:
+        end_date = start_date
+    con = sqlite3.connect("dgg_stats.db")
+    cur = con.cursor()
+    cmd = (
+        "CREATE TABLE IF NOT EXISTS TngScore ("
+        "UserName STRING NOT NULL UNIQUE, "
+        "Score INT NOT NULL)"
+    )
+    cur.execute(cmd)
+    next_day = end_date + timedelta(days=1)
+    for day in daterange(start_date, next_day):
+        if not day.day == 1:
+            print(f"Tng scores skipped ({datetime.now()})")
+            continue
+        year_num, month_name = day.strftime("%Y %B").split()
+        rustle_url = (
+            "https://dgg.overrustlelogs.net/Destinygg%20chatlog/"
+            f"{month_name}%20{year_num}/userlogs/tng69.txt"
+        )
+        print(f"Connecting to {rustle_url}")
+        tng_log = requests.get(rustle_url).text
+        social_credits = {}
+        for credit_change in re.findall(r"(\w+) (\+|-)(\d+)", tng_log):
+            user, change, amount = credit_change
+            if user not in social_credits.keys():
+                social_credits[user] = 0
+            if change == "+":
+                social_credits[user] += int(amount)
+            else:
+                social_credits[user] -= int(amount)
+        for user, credit in social_credits.items():
+            mode = "+" if credit > 0 else "-"
+            params = {"user": user, "credit": abs(credit), "mode": mode}
+            cur.execute(
+                "INSERT OR IGNORE INTO TngScore (UserName, Score) VALUES (:user, 0)",
+                params,
+            )
+            cur.execute(
+                f"UPDATE TngScore SET Score = Score {mode} :credit WHERE UserName = :user",
+                params,
+            )
+        con.commit()
+    con.close()
+    print(f"Tng scores updated successfully at {datetime.now()}")
+
+
 if __name__ == "__main__":
     storage_client = storage.Client()
     bucket = storage_client.bucket("tenadev")
@@ -148,4 +199,5 @@ if __name__ == "__main__":
     blob.download_to_filename("dgg_stats.db")
     update_emote_stats()
     update_lines()
+    update_tng_score()
     blob.upload_from_filename("dgg_stats.db")
