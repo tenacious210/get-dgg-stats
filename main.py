@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from multiprocessing import Pool
 import requests
 import sqlite3
 import json
@@ -6,10 +7,90 @@ import re
 
 from google.cloud import storage
 
+storage_client = storage.Client()
+bucket = storage_client.bucket("tenadev")
+blob = bucket.blob("dgg_stats.db")
+blob.download_to_filename("dgg_stats.db")
+
+con = sqlite3.connect("dgg_stats.db")
+cur = con.cursor()
+cmd = "SELECT UserName FROM Lines ORDER BY Amount DESC LIMIT 5000"
+user_index = [str(i[0]) for i in cur.execute(cmd).fetchall()]
+con.close()
+
 
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
         yield start_date + timedelta(n)
+
+
+def calculate_mentions(line):
+    mentions = {}
+    if len(line) > 26:
+        author = line[26 : line.find(":", 26)]
+        message = line[line.find(":", 26) :]
+        for username in user_index:
+            if username in message:
+                if username not in mentions.keys():
+                    mentions[username] = {}
+                if author not in mentions[username].keys():
+                    mentions[username][author] = 0
+                mentions[username][author] += 1
+    return mentions
+
+
+def update_mentions(
+    start_date: datetime = datetime.today() - timedelta(days=1),
+    end_date: datetime = None,
+):
+    if not end_date:
+        end_date = start_date
+    con = sqlite3.connect("dgg_stats.db")
+    cur = con.cursor()
+    cmd = (
+        "CREATE TABLE IF NOT EXISTS UserMentions ("
+        "UserName STRING NOT NULL UNIQUE, "
+        "Mentions STRING NOT NULL)"
+    )
+    cur.execute(cmd)
+    with Pool() as pool:
+        next_day = end_date + timedelta(days=1)
+        for day in daterange(start_date, next_day):
+            user_mentions = {}
+            year_num, month_num, month_name, day_num = day.strftime(
+                "%Y %m %B %d"
+            ).split()
+            rustle_url = (
+                "https://dgg.overrustlelogs.net/Destinygg%20chatlog/"
+                f"{month_name}%20{year_num}/{year_num}-{month_num}-{day_num}.txt"
+            )
+            print(f"Getting mentions from {rustle_url}")
+            logs = requests.get(rustle_url).text.split("\n")
+            results = pool.map(calculate_mentions, logs)
+            for mention_dict in results:
+                for user in mention_dict:
+                    if user not in user_mentions.keys():
+                        user_mentions[user] = {}
+                    for mention in mention_dict[user]:
+                        if mention not in user_mentions[user].keys():
+                            user_mentions[user][mention] = 0
+                        user_mentions[user][mention] += mention_dict[user][mention]
+            for user_mentioned, mentions in user_mentions.items():
+                params = {"user": user_mentioned}
+                cmd = "INSERT OR IGNORE INTO UserMentions (UserName, Mentions) VALUES (:user, '{}')"
+                cur.execute(cmd, params)
+                cmd = "SELECT Mentions FROM UserMentions WHERE UserName = :user"
+                db_mentions = json.loads(cur.execute(cmd, params).fetchall()[0][0])
+                for user, amount in mentions.items():
+                    if user not in db_mentions.keys():
+                        db_mentions[user] = 0
+                    db_mentions[user] += amount
+                params["mentions"] = json.dumps(db_mentions)
+                cmd = "UPDATE UserMentions SET Mentions = :mentions WHERE UserName = :user"
+                cur.execute(cmd, params)
+            con.commit()
+    con.close()
+    print(f"Mentions updated at {datetime.now()}")
 
 
 def update_emote_stats(
@@ -193,11 +274,8 @@ def update_tng_score(
 
 
 if __name__ == "__main__":
-    storage_client = storage.Client()
-    bucket = storage_client.bucket("tenadev")
-    blob = bucket.blob("dgg_stats.db")
-    blob.download_to_filename("dgg_stats.db")
     update_emote_stats()
     update_lines()
     update_tng_score()
+    update_mentions()
     blob.upload_from_filename("dgg_stats.db")
