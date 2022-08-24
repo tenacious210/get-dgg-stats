@@ -246,7 +246,7 @@ def update_tng_score(
             "https://dgg.overrustlelogs.net/Destinygg%20chatlog/"
             f"{month_name}%20{year_num}/userlogs/tng69.txt"
         )
-        print(f"Connecting to {rustle_url}")
+        print(f"Getting tng scores from {rustle_url}")
         tng_log = requests.get(rustle_url).text
         social_credits = {}
         for credit_change in re.findall(r"(\w+) (\+|-)(\d+)", tng_log):
@@ -273,9 +273,78 @@ def update_tng_score(
     print(f"Tng scores updated successfully at {datetime.now()}")
 
 
+def update_bans(
+    start_date: datetime = datetime.today() - timedelta(days=1),
+    end_date: datetime = None,
+):
+    if not end_date:
+        end_date = start_date
+    con = sqlite3.connect("dgg_stats.db")
+    cur = con.cursor()
+    cmd = (
+        "CREATE TABLE IF NOT EXISTS UserBans ("
+        "UserName STRING NOT NULL UNIQUE, "
+        "Bans STRING NOT NULL)"
+    )
+    cur.execute(cmd)
+    next_day = end_date + timedelta(days=1)
+    ban_pattern = re.compile(
+        r"(?i)\[(?P<timestamp>.*)\] (?P<mod>\w+): !(?P<type>ban|mute|ipban|ip)"
+        r" ?(?P<duration>\d+\w+)? (?P<user>\w+) ?(?P<reason>.*)?"
+    )
+    for day in daterange(start_date, next_day):
+        year_num, month_num, month_name, day_num = day.strftime("%Y %m %B %d").split()
+        rustle_url = (
+            "https://dgg.overrustlelogs.net/Destinygg%20chatlog/"
+            f"{month_name}%20{year_num}/{year_num}-{month_num}-{day_num}.txt"
+        )
+        print(f"Getting bans from {rustle_url}")
+        logs = requests.get(rustle_url).text.split("\n")
+        user_bans = {}
+        for log in logs:
+            if len(log) > 26:
+                user = log[26 : log.find(":", 26)]
+                if user in (
+                    "Destiny",
+                    "RightToBearArmsLOL",
+                    "Lemmiwinks",
+                    "Cake",
+                    "Ninou",
+                    "Linusred",
+                ):
+                    if ban := re.search(ban_pattern, log):
+                        ban = ban.groupdict()
+                        ban["type"] = ban["type"].lower()
+                        ban["user"] = ban["user"].lower()
+                        ban["duration"] = (
+                            ban["duration"].lower() if ban["duration"] else None
+                        )
+                        if not ban["reason"]:
+                            ban["reason"] = None
+                        if ban["user"] not in user_bans.keys():
+                            user_bans[ban["user"]] = []
+                        user_bans[ban["user"]].append(
+                            {k: ban[k] for k in ban.keys() if not k == "user"}
+                        )
+        for username, new_banlist in user_bans.items():
+            params = {"username": username}
+            cmd = f"INSERT OR IGNORE INTO UserBans (UserName,Bans) VALUES (:username,'[]')"
+            cur.execute(cmd, params)
+            cmd = f"SELECT Bans FROM UserBans WHERE UserName=:username"
+            old_banlist = json.loads(cur.execute(cmd, params).fetchall()[0][0])
+            banlist = json.dumps(old_banlist + new_banlist)
+            params = {"username": username, "banlist": banlist}
+            cmd = f"UPDATE UserBans SET Bans = :banlist WHERE UserName = :username"
+            cur.execute(cmd, params)
+            con.commit()
+    con.close()
+    print(f"Bans updated at {datetime.now()}")
+
+
 if __name__ == "__main__":
     update_emote_stats()
     update_lines()
     update_tng_score()
     update_mentions()
+    update_bans()
     blob.upload_from_filename("dgg_stats.db")
