@@ -289,8 +289,9 @@ def update_bans(
     cur.execute(cmd)
     next_day = end_date + timedelta(days=1)
     ban_pattern = re.compile(
-        r"(?i)\[(?P<timestamp>.*)\] (?P<mod>\w+): !(?P<type>ban|mute|ipban|ip)"
-        r" ?(?P<duration>\d+\w+)? (?P<user>\w+) ?(?P<reason>.*)?"
+        r"(?i)^\[(?P<timestamp>\d+-\d+-\d+ \d+:\d+:\d+ UTC)\] "
+        r"(?P<mod>\w+): !(?P<type>ban|mute|ipban|ip) "
+        r"?(?P<duration>\d+\w+)? (?P<user>\w+) ?(?P<reason>.*)?"
     )
     for day in daterange(start_date, next_day):
         year_num, month_num, month_name, day_num = day.strftime("%Y %m %B %d").split()
