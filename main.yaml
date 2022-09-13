@@ -18,6 +18,8 @@
    - 'gcr.io/$PROJECT_ID/get-dgg-stats:$COMMIT_SHA'
    - '--region'
    - 'us-central1'
+   - '--set-env-vars'
+   - 'DGG_STATS_DB=dgg_stats.db'
 
  images:
  - 'gcr.io/$PROJECT_ID/get-dgg-stats:$COMMIT_SHA'

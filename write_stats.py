@@ -2,10 +2,13 @@ from datetime import datetime, timedelta
 import requests
 import sqlite3
 import json
+from os import getenv
+
+db_name = getenv("DGG_STATS_DB")
 
 
 def define_tables(return_users=False):
-    dt_con = sqlite3.connect("dgg_stats.db", timeout=60.0)
+    dt_con = sqlite3.connect(db_name, timeout=60.0)
     dt_cur = dt_con.cursor()
     commands = (
         "CREATE TABLE IF NOT EXISTS Lines ("
@@ -127,7 +130,7 @@ def update_top_posters(cur: sqlite3.Cursor):
 
 
 def write_dgg_stats(stats, date: datetime):
-    con = sqlite3.connect("dgg_stats.db", timeout=60.0)
+    con = sqlite3.connect(db_name, timeout=60.0)
     cur = con.cursor()
     print("Writing stats...")
     for username, amount in stats["lines"].items():

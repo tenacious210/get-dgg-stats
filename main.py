@@ -3,6 +3,7 @@ from write_stats import write_dgg_stats
 from datetime import datetime, timedelta
 from multiprocessing import Pool
 import requests
+from os import getenv
 
 from google.cloud import storage
 
@@ -18,11 +19,12 @@ def main(start_date=datetime.today() - timedelta(days=1), end_date=None):
         end_date = start_date
     next_day = end_date + timedelta(days=1)
 
-    print("Downloading dgg_stats.db...")
+    print(f"Downloading {db_name}...")
+    db_name = getenv("DGG_STATS_DB")
     storage_client = storage.Client()
     bucket = storage_client.bucket("tenadev")
-    blob = bucket.blob("dgg_stats.db")
-    blob.download_to_filename("dgg_stats.db")
+    blob = bucket.blob(db_name)
+    blob.download_to_filename(db_name)
 
     for day in daterange(start_date, next_day):
         date_str = day.strftime("%Y %m %B %d").split()
@@ -38,7 +40,7 @@ def main(start_date=datetime.today() - timedelta(days=1), end_date=None):
         write_dgg_stats(process_dgg_stats(stats), day)
 
     print("Uploading db...")
-    blob.upload_from_filename("dgg_stats.db")
+    blob.upload_from_filename(db_name)
 
     print(f"Finished at {datetime.now()}")
 
