@@ -19,8 +19,8 @@ def main(start_date=datetime.today() - timedelta(days=1), end_date=None):
         end_date = start_date
     next_day = end_date + timedelta(days=1)
 
-    print(f"Downloading {db_name}...")
     db_name = getenv("DGG_STATS_DB")
+    print(f"Downloading {db_name}...")
     storage_client = storage.Client()
     bucket = storage_client.bucket("tenadev")
     blob = bucket.blob(db_name)
