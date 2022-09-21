@@ -88,6 +88,13 @@ def update_emotes(username, date: datetime, emote_dict: dict, cur: sqlite3.Curso
     cur.execute(cmd, params)
 
 
+def trim_old_emote_stats(cur: sqlite3.Cursor):
+    target_day = datetime.today() - timedelta(days=30)
+    params = {"date": target_day.strftime("%Y-%m-%d")}
+    cmd = f"DELETE FROM EmoteStats WHERE Date < DATE(:date)"
+    cur.execute(cmd, params)
+
+
 def update_tng_score(username, change, cur: sqlite3.Cursor):
     mode = "+" if change > 0 else "-"
     params = {"username": username, "change": abs(change), "mode": mode}
@@ -144,7 +151,11 @@ def write_dgg_stats(stats, date: datetime):
     check_latest_emotes(cur)
     for username, emote_stats in stats["emotes"].items():
         update_emotes(username, date, emote_stats, cur)
+    trim_old_emote_stats(cur)
     print("Writing top posters...")
     update_top_posters(cur)
+    con.commit()
+    print("Cleaning up...")
+    cur.execute("VACUUM")
     con.commit()
     con.close()
