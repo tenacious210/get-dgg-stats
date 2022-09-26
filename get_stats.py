@@ -4,7 +4,6 @@ import re
 
 emote_json = requests.get("https://cdn.destiny.gg/emotes/emotes.json").json()
 emote_names = [e["prefix"] for e in emote_json]
-user_index = define_tables(return_users=True)
 
 ban_pattern = re.compile(
     r"(?i)^\[(?P<timestamp>\d+-\d+-\d+ \d+:\d+:\d+ UTC)\] "
@@ -22,7 +21,7 @@ admins = (
 )
 
 
-def get_mentions(log):
+def get_mentions(log, user_index):
     mentions = []
     if len(log) > 26:
         message = log[log.find(":", 26) :]
@@ -72,10 +71,10 @@ def get_bans(log):
     return ban
 
 
-def get_dgg_stats(log):
+def get_dgg_stats(log, user_index):
     if len(log) > 26:
         stats = {"username": log[26 : log.find(":", 26)]}
-        stats["mentions"] = get_mentions(log)
+        stats["mentions"] = get_mentions(log, user_index)
         stats["emotes"] = get_emotes(log)
         stats["tng_score"] = get_tng_score(log)
         stats["bans"] = get_bans(log)
