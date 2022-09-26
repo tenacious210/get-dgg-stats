@@ -33,11 +33,12 @@ def define_tables(return_users=False):
     )
     for command in commands:
         dt_cur.execute(command)
+    dt_con.commit()
     user_index = None
     if return_users:
         cmd = "SELECT UserName FROM Lines ORDER BY Amount DESC LIMIT 5000"
-        user_index = [str(i[0]) for i in dt_cur.execute(cmd).fetchall()]
-    dt_con.commit()
+        user_index_raw = dt_cur.execute(cmd).fetchall()
+        user_index = [str(i[0]) for i in user_index_raw]
     dt_con.close()
     return user_index
 

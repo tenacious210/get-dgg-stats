@@ -1,5 +1,5 @@
 from get_stats import get_dgg_stats, process_dgg_stats
-from write_stats import write_dgg_stats
+from write_stats import write_dgg_stats, define_tables
 from datetime import datetime, timedelta
 from multiprocessing import Pool
 import requests
@@ -34,9 +34,11 @@ def main(start_date=datetime.today() - timedelta(days=1), end_date=None):
         )
         print(f"Requesting logs for {day.strftime('%Y-%m-%d')}...")
         logs = requests.get(rustle_url).text.split("\n")
+        user_index = define_tables(return_users=True)
+        logs_with_ui = [(log, user_index) for log in logs]
         with Pool() as pool:
             print("Getting stats...")
-            stats = pool.map(get_dgg_stats, logs)
+            stats = pool.starmap(get_dgg_stats, logs_with_ui)
         write_dgg_stats(process_dgg_stats(stats), day)
 
     print("Uploading db...")
