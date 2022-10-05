@@ -46,9 +46,9 @@ def define_tables(return_users=False):
 def check_latest_emotes(cur: sqlite3.Cursor):
     emote_json = requests.get("https://cdn.destiny.gg/emotes/emotes.json").json()
     emotes = [e["prefix"] for e in emote_json]
-    columns = [i[1] for i in cur.execute("PRAGMA table_info(EmoteStats)")]
+    columns = [i[1].lower() for i in cur.execute("PRAGMA table_info(EmoteStats)")]
     for emote in emotes:
-        if emote not in columns:
+        if emote.lower() not in columns:
             cur.execute(f"ALTER TABLE EmoteStats ADD {emote} INT")
     return emotes
 
