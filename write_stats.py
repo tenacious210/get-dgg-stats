@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta
-import requests
+from os import getenv
 import sqlite3
 import json
-from os import getenv
+import logging
+import requests
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 db_name = getenv("DGG_STATS_DB")
 
 
@@ -140,7 +143,7 @@ def update_top_posters(cur: sqlite3.Cursor):
 def write_dgg_stats(stats, date: datetime):
     con = sqlite3.connect(db_name, timeout=60.0)
     cur = con.cursor()
-    print("Writing stats...")
+    logger.debug("Writing stats...")
     for username, amount in stats["lines"].items():
         add_lines(username, amount, cur)
     for username, mentions in stats["mentions"].items():
@@ -153,10 +156,10 @@ def write_dgg_stats(stats, date: datetime):
     for username, emote_stats in stats["emotes"].items():
         update_emotes(username, date, emote_stats, cur)
     trim_old_emote_stats(cur)
-    print("Writing top posters...")
+    logger.debug("Writing top posters...")
     update_top_posters(cur)
     con.commit()
-    print("Cleaning up...")
+    logger.debug("Cleaning up...")
     cur.execute("VACUUM")
     con.commit()
     con.close()
