@@ -41,7 +41,7 @@ def main(start_date=datetime.today() - timedelta(days=1), end_date=None):
         if cloud_sync:
             log_blob = bucket.blob(f"dgg-logs/{log_filename}")
             try:
-                logs = log_blob.download_as_string().split("\n")
+                logs = log_blob.download_as_text().split("\n")
             except NotFound:
                 logger.warning(f"Couldn't download {log_filename}")
                 continue
