@@ -1,4 +1,3 @@
-from write_stats import define_tables
 import requests
 import re
 
@@ -71,8 +70,8 @@ def get_bans(log):
     return ban
 
 
-def get_dgg_stats(log, user_index):
-    if len(log) > 26:
+def get_dgg_stats(log: str, user_index):
+    if len(log) > 26 and log.startswith("["):
         stats = {"username": log[26 : log.find(":", 26)]}
         stats["mentions"] = get_mentions(log, user_index)
         stats["emotes"] = get_emotes(log)
