@@ -85,7 +85,7 @@ def update_emotes(username, date: datetime, emote_dict: dict, cur: sqlite3.Curso
     params = {"username": username}
     cmd = (
         f"INSERT OR IGNORE INTO EmoteStats "
-        f"(UserName, Date, {', '.join(emote_dict.keys())}) "
+        f"(UserName, Date, `{'`, `'.join(emote_dict.keys())}`) "
         f"VALUES (:username, '{date.strftime('%Y-%m-%d')}', "
         f"{', '.join([str(v) for v in emote_dict.values()])})"
     )
