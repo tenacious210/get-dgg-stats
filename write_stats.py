@@ -52,7 +52,7 @@ def check_latest_emotes(cur: sqlite3.Cursor):
     columns = [i[1].lower() for i in cur.execute("PRAGMA table_info(EmoteStats)")]
     for emote in emotes:
         if emote.lower() not in columns:
-            cur.execute(f"ALTER TABLE EmoteStats ADD {emote} INT")
+            cur.execute(f'ALTER TABLE EmoteStats ADD "{emote}" INT')
     return emotes
 
 
