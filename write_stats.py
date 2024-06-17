@@ -52,7 +52,7 @@ def check_latest_emotes(cur: sqlite3.Cursor):
     columns = [i[1].lower() for i in cur.execute("PRAGMA table_info(EmoteStats)")]
     for emote in emotes:
         if emote.lower() not in columns:
-            cur.execute(f'ALTER TABLE EmoteStats ADD "{emote}" INT')
+            cur.execute(f"ALTER TABLE EmoteStats ADD `{emote}` INT")
     return emotes
 
 
@@ -128,9 +128,9 @@ def update_top_posters(cur: sqlite3.Cursor):
     sql_date = target_day.strftime("%Y-%m-%d")
     for emote in emotes:
         cmd = (
-            f"SELECT UserName,SUM({emote}) FROM EmoteStats "
-            f"WHERE Date >= DATE('{sql_date}') AND {emote} > 0 "
-            f"GROUP BY UserName ORDER BY SUM({emote}) DESC "
+            f"SELECT UserName,SUM(`{emote}`) FROM EmoteStats "
+            f"WHERE Date >= DATE('{sql_date}') AND `{emote}` > 0 "
+            f"GROUP BY UserName ORDER BY SUM(`{emote}`) DESC "
             f"LIMIT 5"
         )
         top_posters_raw = cur.execute(cmd).fetchall()
